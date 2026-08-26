@@ -64,6 +64,25 @@ Each page's own `.js` file then fetches its data (e.g. `portal.js` calls
    - **Admin:** `admin@tech.com` / `admin`
    - Employee (demo): `alex.rivera@omniauth.test` / `Password123!`
 
+## Setup (Render)
+
+Render runs the PHP/Apache container, but it does not provide a MySQL server for this
+application. Create or use an external MySQL/MariaDB database, import `database/schema.sql`,
+then add these environment variables to the Render Web Service:
+
+```text
+DB_HOST=<database host>
+DB_NAME=<database name>
+DB_USER=<database user>
+DB_PASS=<database password>
+DB_PORT=3306
+```
+
+The application also accepts the equivalent `MYSQLHOST`, `MYSQLDATABASE`, `MYSQLUSER`,
+`MYSQLPASSWORD`, and `MYSQLPORT` names. After deployment, open
+`/backend/includes/seed_helper.php` once to create working demo password hashes, then sign
+in at `/frontend/html/index.html` with `admin@tech.com` / `admin`.
+
 ⚠️ Serve the site over `http://localhost/...` (not `file://`) — camera and geolocation
 access require a secure context, and `localhost` counts as one even without HTTPS. Also,
 API calls use cookie-based PHP sessions, which also require a real HTTP origin.

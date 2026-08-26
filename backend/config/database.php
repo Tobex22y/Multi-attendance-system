@@ -3,11 +3,11 @@
  * Database connection.
  * Local XAMPP is the default; deployments can override these with env vars.
  */
-define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
-define('DB_NAME', getenv('DB_NAME') ?: 'multi_auth_attendance');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: '');
-define('DB_PORT', (int)(getenv('DB_PORT') ?: 3306));
+define('DB_HOST', getenv('DB_HOST') ?: getenv('MYSQLHOST') ?: '127.0.0.1');
+define('DB_NAME', getenv('DB_NAME') ?: getenv('MYSQLDATABASE') ?: 'multi_auth_attendance');
+define('DB_USER', getenv('DB_USER') ?: getenv('MYSQLUSER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: getenv('MYSQLPASSWORD') ?: '');
+define('DB_PORT', (int)(getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: 3306));
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
@@ -23,7 +23,7 @@ try {
         'success' => false,
         'authenticated' => false,
         'message' => 'Database connection failed: ' . $e->getMessage() .
-            '. Make sure MySQL is running and you have imported database/schema.sql',
+            '. On Render, set DB_HOST, DB_NAME, DB_USER, DB_PASS, and DB_PORT to an external MySQL/MariaDB database and import database/schema.sql.',
     ]);
     exit;
 }

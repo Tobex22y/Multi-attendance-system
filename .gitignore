@@ -1,0 +1,21 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime uploads and generated data
+backend/uploads/
+frontend/uploads/
+*.log
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# XAMPP local files
+php_error_log
+
+# Backup files
+*.bak

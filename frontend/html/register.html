@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — OmniAuth Attendance</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="nav-logo"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="nav-title">
+          <b>Create your account</b>
+          <span>Enroll for Multi-Factor Attendance</span>
+        </div>
+      </div>
+
+      <div class="error-msg" id="errorBox" style="display:none;"></div>
+
+      <form id="registerForm">
+        <label>Full Name</label>
+        <input type="text" name="full_name" required>
+        <label>Email</label>
+        <input type="email" name="email" required>
+        <label>I am a</label>
+        <select name="role">
+          <option value="employee">Employee</option>
+          <option value="student">Student</option>
+        </select>
+        <label>Department / Class</label>
+        <input type="text" name="department" placeholder="e.g. Software Engineering">
+        <label>Password</label>
+        <input type="password" name="password" required minlength="8">
+
+        <label>Face Enrollment (for Face Recognition check-in)</label>
+        <div class="scan-box" style="padding:20px;">
+          <div class="scan-frame" style="width:200px;height:200px;">
+            <video id="enrollVideo" autoplay muted playsinline style="width:100%;height:100%;border-radius:10px;object-fit:cover;display:none;"></video>
+            <div id="enrollFallback">
+              <i class="fa-solid fa-face-smile" style="font-size:26px;"></i>
+              <div><b>Camera Preview</b></div>
+              <div style="font-size:11px;padding:0 16px;">Open your camera and capture your face to enroll.</div>
+            </div>
+          </div>
+          <div id="enrollStatus" style="font-size:12px;color:var(--text-dim);margin-bottom:10px;"></div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" id="openEnrollCameraBtn"><i class="fa-solid fa-video"></i> Open Camera</button>
+            <button type="button" class="btn btn-primary" id="captureFaceBtn" disabled><i class="fa-solid fa-camera"></i> Capture Face</button>
+          </div>
+        </div>
+        <input type="hidden" name="face_descriptor" id="faceDescriptorInput">
+
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:14px;">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </form>
+      <span class="muted-link">Already registered? <a href="index.html">Sign in</a></span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/face.js"></script>
+  <script src="../js/register-face.js"></script>
+  <script src="../js/register.js"></script>
+</body>
+</html>

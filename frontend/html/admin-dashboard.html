@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — OmniAuth Attendance</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<div class="container">
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div><div class="label">Total Registered</div><div class="value" id="statTotalUsers"></div><div class="sub">Employees &amp; Students</div></div>
+      <div class="stat-icon icon-green"><i class="fa-solid fa-users"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">On-Time Attendance</div><div class="value" style="color:var(--green);" id="statOnTime"></div><div class="sub" id="statOnTimeRate"></div></div>
+      <div class="stat-icon icon-green"><i class="fa-solid fa-circle-check"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Late Arrivals</div><div class="value" style="color:var(--amber);" id="statLate"></div><div class="sub">Grace Period Exceeded</div></div>
+      <div class="stat-icon icon-amber"><i class="fa-solid fa-clock"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Geofence Breaches</div><div class="value" style="color:var(--red);" id="statViolations"></div><div class="sub">Outside Permitted Zone</div></div>
+      <div class="stat-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="logs"><i class="fa-solid fa-file-lines"></i> Real-time Attendance Logs</div>
+    <div class="tab" data-tab="users"><i class="fa-solid fa-users"></i> User Directory</div>
+    <div class="tab" data-tab="attendance"><i class="fa-solid fa-chalkboard-user"></i> Course Attendance</div>
+    <div class="tab" data-tab="geofences"><i class="fa-solid fa-location-dot"></i> Geofences &amp; Security Policies</div>
+    <div class="tab" data-tab="leave"><i class="fa-solid fa-calendar-days"></i> Leave Requests</div>
+  </div>
+
+  <!-- LOGS TAB -->
+  <div class="tab-content active" id="tab-logs">
+    <div class="panel">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="flex:1;min-width:220px;position:relative;">
+          <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:12px;"></i>
+          <input type="text" id="logSearch" placeholder="Search employee, ID or department..." style="padding-left:32px;margin-bottom:0;">
+        </div>
+      </div>
+      <table id="logsTable">
+        <thead><tr><th>User &amp; ID</th><th>Role &amp; Department</th><th>Check-in Time</th><th>Status</th><th>Verified Methods</th><th>GPS Distance</th><th>Face Match</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- USERS TAB -->
+  <div class="tab-content" id="tab-users">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">Registered Employees &amp; Students</h3>
+        <button class="btn btn-primary" id="openEnrollModalBtn">
+          <i class="fa-solid fa-user-plus"></i> Enroll New User
+        </button>
+      </div>
+      <div class="stats-grid" id="usersGrid"></div>
+    </div>
+  </div>
+
+  <!-- COURSE ATTENDANCE TAB -->
+  <div class="tab-content" id="tab-attendance">
+    <div style="display:grid;grid-template-columns:minmax(280px, .8fr) minmax(320px, 1.2fr);gap:18px;">
+      <div class="panel">
+        <h3 style="margin-top:0;"><i class="fa-solid fa-calendar-plus" style="color:var(--green);"></i> Open Course Attendance</h3>
+        <form id="attendanceSessionForm">
+          <label>Course Code</label>
+          <input type="text" name="course_code" placeholder="e.g. CSC 301" required>
+          <label>Course Name</label>
+          <input type="text" name="course_name" placeholder="e.g. Database Systems" required>
+          <label>Starts</label>
+          <input type="datetime-local" name="starts_at" required>
+          <label>Ends</label>
+          <input type="datetime-local" name="ends_at" required>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><label>Latitude</label><input type="number" step="any" name="latitude" id="sessionLat" required></div>
+            <div><label>Longitude</label><input type="number" step="any" name="longitude" id="sessionLng" required></div>
+          </div>
+          <button type="button" class="btn btn-outline btn-block" id="useSessionGpsBtn" style="margin-bottom:14px;">
+            <i class="fa-solid fa-location-crosshairs"></i> Pick My Current GPS
+          </button>
+          <label>Allowed Radius (meters)</label>
+          <input type="number" name="radius_m" value="100" min="10" required>
+          <div id="sessionGpsStatus" style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;"></div>
+          <button class="btn btn-primary btn-block" type="submit"><i class="fa-solid fa-play"></i> Open Attendance</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h3 style="margin-top:0;"><i class="fa-solid fa-list-check" style="color:var(--green);"></i> Course Attendance Sessions</h3>
+        <div id="attendanceSessionList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GEOFENCES TAB -->
+  <div class="tab-content" id="tab-geofences">
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:18px;">
+      <div class="panel">
+        <h3 style="margin-top:0;"><i class="fa-solid fa-shield-halved" style="color:var(--green);"></i> Global Security &amp; MFA Rules</h3>
+        <form id="settingsForm">
+          <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div>
+              <b>Require Multi-Factor Authentication (MFA)</b><br>
+              <span style="font-size:12px;color:var(--text-dim);">Enforce 2 or 3 verification steps per check-in</span>
+            </div>
+            <input type="checkbox" name="require_mfa" id="requireMfaInput" style="width:20px;height:20px;">
+          </div>
+          <label>Shift Late Grace Period (Minutes)</label>
+          <input type="number" name="grace_period_minutes" id="graceMinutesInput">
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Rules</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h3 style="margin-top:0;"><i class="fa-solid fa-location-dot" style="color:var(--green);"></i> Active Geofence Campuses</h3>
+        <div id="geofenceList"></div>
+        <form id="geofenceForm" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+          <label>New Campus Name</label>
+          <input type="text" name="name" required>
+          <label>Address</label>
+          <input type="text" name="address" required>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><label>Latitude</label><input type="text" name="latitude" id="geoLat" required></div>
+            <div><label>Longitude</label><input type="text" name="longitude" id="geoLng" required></div>
+          </div>
+          <button type="button" class="btn btn-outline btn-block" id="useMyGpsBtn" style="margin-bottom:14px;">
+            <i class="fa-solid fa-location-crosshairs"></i> Use My Current GPS
+          </button>
+          <label>Radius (meters)</label>
+          <input type="number" name="radius_m" value="5" required>
+          <div id="gpsCaptureStatus" style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;"></div>
+          <button class="btn btn-outline btn-block" type="submit"><i class="fa-solid fa-plus"></i> Add Geofence</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEAVE TAB -->
+  <div class="tab-content" id="tab-leave">
+    <div class="panel">
+      <h3 style="margin-top:0;">Employee &amp; Student Absence Requests</h3>
+      <div id="leaveList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="adminQrModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="max-width:340px;width:92%;text-align:center;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-qrcode" style="color:var(--green);"></i> User QR Badge</h3>
+    <div id="adminQrTitle" style="color:var(--text-dim);font-size:12.5px;"></div>
+    <div id="adminQrCanvas" style="display:flex;justify-content:center;margin:16px 0;background:#fff;border-radius:10px;padding:16px;"></div>
+    <button class="btn btn-outline btn-block" id="closeAdminQrBtn">Close</button>
+  </div>
+</div>
+
+<!-- Enroll modal -->
+<div id="enrollModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="max-width:420px;width:92%;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-user-plus" style="color:var(--green);"></i> Enroll New User</h3>
+    <form id="enrollForm">
+      <label>Full Name</label>
+      <input type="text" name="full_name" required>
+      <label>Email</label>
+      <input type="email" name="email" required>
+      <label>Role</label>
+      <select name="role">
+        <option value="employee">Employee</option>
+        <option value="student">Student</option>
+        <option value="admin">Admin</option>
+      </select>
+      <label>Department / Class</label>
+      <input type="text" name="department">
+      <label>Password</label>
+      <input type="password" name="password" minlength="8" placeholder="Leave blank to generate one">
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-outline btn-block" id="cancelEnrollBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/admin.js"></script>
+</body>
+</html>

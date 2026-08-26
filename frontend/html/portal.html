@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Portal &amp; Logs — OmniAuth Attendance</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<div class="container">
+
+  <div class="success-msg" id="successBox" style="display:none;"></div>
+
+  <div class="panel profile-header">
+    <img class="profile-photo" id="profilePhoto" src="" alt="">
+    <div>
+      <div class="profile-name">
+        <span id="profileNameText"></span> <span class="badge badge-green" id="profileRole"></span>
+      </div>
+      <div class="profile-sub"><span id="profileDept"></span> &bull; ID: <b id="profileCode"></b></div>
+      <div class="profile-sub">Shift Hours: <span id="profileShift"></span></div>
+    </div>
+    <div class="profile-actions">
+      <a href="checkin.html" class="btn btn-primary"><i class="fa-solid fa-table-cells-large"></i> Go to Live Check-in</a>
+      <button class="btn btn-outline" id="showLeaveBtn">
+        <i class="fa-solid fa-plus"></i> Apply for Absence
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div><div class="label">Punctuality Score</div><div class="value" style="color:var(--green);" id="punctualityValue"></div><div class="sub" id="onTimeSub"></div></div>
+      <div class="stat-icon icon-green"><i class="fa-solid fa-circle-check"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Late Count</div><div class="value" style="color:var(--amber);" id="lateValue"></div><div class="sub">Grace period exceeded</div></div>
+      <div class="stat-icon icon-amber"><i class="fa-solid fa-clock"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Total Recorded Logs</div><div class="value" id="totalValue"></div><div class="sub">Verified attendance logs</div></div>
+      <div class="stat-icon icon-green"><i class="fa-solid fa-calendar-days"></i></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-chalkboard-user" style="color:var(--green);"></i> Open Course Attendance</h3>
+    <div id="attendanceSessions"></div>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-file-lines" style="color:var(--green);"></i> My Personal Attendance History</h3>
+    <table>
+      <thead><tr><th>Course</th><th>Date &amp; Time</th><th>Status</th><th>Auth Method</th><th>GPS Distance</th><th>Face Score</th></tr></thead>
+      <tbody id="logsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-note-sticky" style="color:var(--green);"></i> My Absence Requests</h3>
+    <table>
+      <thead><tr><th>Type</th><th>Reason</th><th>Dates</th><th>Status</th></tr></thead>
+      <tbody id="leavesBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Leave modal -->
+<div id="leaveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="max-width:420px;width:92%;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-plus" style="color:var(--green);"></i> Apply for Absence</h3>
+    <div class="error-msg" id="leaveErrorBox" style="display:none;"></div>
+    <form id="leaveForm">
+      <label>Type</label>
+      <select name="leave_type">
+        <option value="sick">Sick Leave</option>
+        <option value="vacation">Vacation Leave</option>
+        <option value="emergency">Emergency</option>
+        <option value="other">Other</option>
+      </select>
+      <label>Reason</label>
+      <textarea name="reason" rows="3" required></textarea>
+      <label>Start Date</label>
+      <input type="date" name="start_date" required>
+      <label>End Date</label>
+      <input type="date" name="end_date" required>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-outline btn-block" id="cancelLeaveBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-paper-plane"></i> Submit Request
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../js/common.js"></script>
+<script src="../js/portal.js"></script>
+</body>
+</html>

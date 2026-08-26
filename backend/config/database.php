@@ -1,13 +1,13 @@
 <?php
 /**
  * Database connection.
- * Database settings for the hosted MySQL server.
+ * Local XAMPP is the default; deployments can override these with env vars.
  */
-define('DB_HOST', 'sql3.freesqldatabase.com');
-define('DB_NAME', 'sql3836021');
-define('DB_USER', 'sql3836021');
-define('DB_PASS', '3yflGFSW24');
-define('DB_PORT', 3306);
+define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+define('DB_NAME', getenv('DB_NAME') ?: 'multi_auth_attendance');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
+define('DB_PORT', (int)(getenv('DB_PORT') ?: 3306));
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 

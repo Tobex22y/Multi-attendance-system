@@ -10,11 +10,15 @@ $fullName = trim($body['full_name'] ?? '');
 $email = trim($body['email'] ?? '');
 $password = $body['password'] ?? '';
 $role = in_array($body['role'] ?? '', ['employee', 'student']) ? $body['role'] : 'employee';
+$level = in_array($body['level'] ?? '', ['100L', '200L', '300L', '400L', '500L'], true) ? $body['level'] : null;
 $department = trim($body['department'] ?? '');
 $faceDescriptorRaw = $body['face_descriptor'] ?? '';
 
 if ($fullName === '' || $email === '') {
     json_response(['success' => false, 'message' => 'Full name and email are required.'], 422);
+}
+if ($role === 'student' && $level === null) {
+    json_response(['success' => false, 'message' => 'Please select the student level.'], 422);
 }
 if (strlen($password) < 8) {
     json_response(['success' => false, 'message' => 'Password must be at least 8 characters.'], 422);
@@ -52,10 +56,10 @@ if ($validFaceDescriptor) {
 }
 
 $stmt = $conn->prepare(
-    'INSERT INTO users (user_code, full_name, email, password_hash, role, department, qr_secret, face_template, face_enrolled)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO users (user_code, full_name, email, password_hash, role, level, department, qr_secret, face_template, face_enrolled)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
-$stmt->bind_param('ssssssssi', $userCode, $fullName, $email, $hash, $role, $department, $qrSecret, $faceTemplate, $faceEnrolled);
+$stmt->bind_param('sssssssssi', $userCode, $fullName, $email, $hash, $role, $level, $department, $qrSecret, $faceTemplate, $faceEnrolled);
 $stmt->execute();
 
 log_in_user(['id' => $stmt->insert_id, 'role' => $role]);

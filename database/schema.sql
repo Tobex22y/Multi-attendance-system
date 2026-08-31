@@ -22,6 +22,7 @@ CREATE TABLE users (
   email           VARCHAR(150) NOT NULL UNIQUE,
   password_hash   VARCHAR(255) NOT NULL,
   role            ENUM('admin','employee','student') NOT NULL DEFAULT 'employee',
+  level           ENUM('100L','200L','300L','400L','500L') DEFAULT NULL,  -- student level when role = student
   department      VARCHAR(120) DEFAULT NULL,          -- e.g. Software Engineering, CS Class 2026
   photo_path      VARCHAR(255) DEFAULT NULL,
   shift_start     TIME DEFAULT '09:00:00',
@@ -145,12 +146,12 @@ INSERT INTO geofences (name, address, latitude, longitude, radius_m) VALUES
 -- password_hash placeholders below are overwritten by includes/seed_helper.php:
 --   admin@tech.com          -> password: admin
 --   all other seeded users  -> password: Password123!
-INSERT INTO users (user_code, full_name, email, password_hash, role, department, shift_start, shift_end, qr_secret, face_enrolled, fingerprint_enrolled) VALUES
- ('ADM-1001', 'Dr. Sarah Connor', 'admin@tech.com',              '$2y$10$abcdefghijklmnopqrstuv', 'admin',    'System Security & HR',     '09:00:00','17:30:00', 'QR-ADM1001-SECRET', 0, 0),
- ('EMP-1002', 'Alex Rivera',      'alex.rivera@omniauth.test',  '$2y$10$abcdefghijklmnopqrstuv', 'employee', 'Software Engineering',     '09:00:00','17:30:00', 'QR-EMP1002-SECRET', 0, 0),
- ('STU-5021', 'Elena Rostova',    'elena.rostova@omniauth.test','$2y$10$abcdefghijklmnopqrstuv', 'student',  'CS Class 2026',            '09:00:00','17:30:00', 'QR-STU5021-SECRET', 0, 0),
- ('EMP-1008', 'Marcus Vance',     'marcus.vance@omniauth.test', '$2y$10$abcdefghijklmnopqrstuv', 'employee', 'Product Operations',       '09:00:00','17:30:00', 'QR-EMP1008-SECRET', 0, 0),
- ('STU-5044', 'David Chen',       'david.chen@omniauth.test',   '$2y$10$abcdefghijklmnopqrstuv', 'student',  'Data Science 2026',        '09:00:00','17:30:00', 'QR-STU5044-SECRET', 0, 0);
+INSERT INTO users (user_code, full_name, email, password_hash, role, level, department, shift_start, shift_end, qr_secret, face_enrolled, fingerprint_enrolled) VALUES
+ ('ADM-1001', 'Dr. Sarah Connor', 'admin@tech.com',              '$2y$10$abcdefghijklmnopqrstuv', 'admin',    NULL, 'System Security & HR',     '09:00:00','17:30:00', 'QR-ADM1001-SECRET', 0, 0),
+ ('EMP-1002', 'Alex Rivera',      'alex.rivera@omniauth.test',  '$2y$10$abcdefghijklmnopqrstuv', 'employee', NULL, 'Software Engineering',     '09:00:00','17:30:00', 'QR-EMP1002-SECRET', 0, 0),
+ ('STU-5021', 'Elena Rostova',    'elena.rostova@omniauth.test','$2y$10$abcdefghijklmnopqrstuv', 'student',  '400L', 'CS Class 2026',            '09:00:00','17:30:00', 'QR-STU5021-SECRET', 0, 0),
+ ('EMP-1008', 'Marcus Vance',     'marcus.vance@omniauth.test', '$2y$10$abcdefghijklmnopqrstuv', 'employee', NULL, 'Product Operations',       '09:00:00','17:30:00', 'QR-EMP1008-SECRET', 0, 0),
+ ('STU-5044', 'David Chen',       'david.chen@omniauth.test',   '$2y$10$abcdefghijklmnopqrstuv', 'student',  '300L', 'Data Science 2026',        '09:00:00','17:30:00', 'QR-STU5044-SECRET', 0, 0);
 
 -- Face templates are intentionally left NULL for seed accounts — a real 128-point
 -- face descriptor can only be captured from an actual live camera (see register.php),

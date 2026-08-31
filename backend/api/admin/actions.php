@@ -94,10 +94,14 @@ switch ($action) {
         $fullName = trim($body['full_name'] ?? '');
         $email = trim($body['email'] ?? '');
         $role = in_array($body['role'] ?? '', ['employee', 'student', 'admin']) ? $body['role'] : 'employee';
+        $level = in_array($body['level'] ?? '', ['100L', '200L', '300L', '400L', '500L'], true) ? $body['level'] : null;
         $department = trim($body['department'] ?? '');
         $password = $body['password'] ?? '';
         if ($fullName === '' || $email === '') {
             json_response(['success' => false, 'message' => 'Full name and email are required.'], 422);
+        }
+        if ($role === 'student' && $level === null) {
+            json_response(['success' => false, 'message' => 'Please select the student level.'], 422);
         }
         if ($password !== '' && strlen($password) < 8) {
             json_response(['success' => false, 'message' => 'Password must be at least 8 characters.'], 422);
@@ -114,10 +118,10 @@ switch ($action) {
         $createdPassword = $password !== '' ? $password : bin2hex(random_bytes(4));
         $hash = password_hash($createdPassword, PASSWORD_BCRYPT);
         $stmt = $conn->prepare(
-            'INSERT INTO users (user_code, full_name, email, password_hash, role, department, qr_secret)
-             VALUES (?,?,?,?,?,?,?)'
+            'INSERT INTO users (user_code, full_name, email, password_hash, role, level, department, qr_secret)
+             VALUES (?,?,?,?,?,?,?,?)'
         );
-        $stmt->bind_param('sssssss', $userCode, $fullName, $email, $hash, $role, $department, $qrSecret);
+        $stmt->bind_param('ssssssss', $userCode, $fullName, $email, $hash, $role, $level, $department, $qrSecret);
         $stmt->execute();
         json_response(['success' => true, 'user_code' => $userCode, 'password' => $password === '' ? $createdPassword : null]);
     }

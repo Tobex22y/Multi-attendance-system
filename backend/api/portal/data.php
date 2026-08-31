@@ -38,11 +38,14 @@ $stmt->execute();
 $sessions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 if ($user['role'] === 'student') {
-    $studentLevel = extract_student_level($user['department'] ?? '');
+    $studentLevel = $user['level'] ?? null;
+    if ($studentLevel === null) {
+        $studentLevel = extract_student_level($user['department'] ?? '');
+    }
     if ($studentLevel !== null) {
         $sessions = array_values(array_filter(
             $sessions,
-            fn($session) => matches_student_course_level($session['course_code'] ?? '', $studentLevel)
+            fn($session) => matches_student_course_level($session['course_code'] ?? '', intval(substr($studentLevel, 0, 1)))
         ));
     }
 }

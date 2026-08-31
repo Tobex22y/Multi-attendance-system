@@ -19,6 +19,7 @@
       full_name: form.full_name.value.trim(),
       email: form.email.value.trim(),
       role: form.role.value,
+      level: form.level.value,
       department: form.department.value.trim(),
       password: form.password.value,
       face_descriptor: document.getElementById('faceDescriptorInput').value,

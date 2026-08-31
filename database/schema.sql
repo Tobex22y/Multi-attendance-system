@@ -4,6 +4,10 @@
 -- Import via phpMyAdmin or: mysql -u root -p < schema.sql
 -- ============================================================
 
+DROP DATABASE multi_auth_attendance;
+CREATE DATABASE multi_auth_attendance;
+USE multi_auth_attendance;
+
 CREATE DATABASE IF NOT EXISTS multi_auth_attendance
   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE multi_auth_attendance;

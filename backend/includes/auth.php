@@ -52,6 +52,15 @@ function require_admin(): array {
     return $user;
 }
 
+/** Require a lecturer/employee. Sends a 403 JSON response and stops otherwise. */
+function require_lecturer(): array {
+    $user = require_login();
+    if (!in_array($user['role'], ['employee', 'admin'], true)) {
+        json_response(['message' => 'Lecturer access required.'], 403);
+    }
+    return $user;
+}
+
 function log_in_user(array $user): void {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['role']    = $user['role'];

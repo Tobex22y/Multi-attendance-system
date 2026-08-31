@@ -73,6 +73,49 @@ function attach_badge(array $log): array {
     return $log;
 }
 
+function extract_student_level(string $source): ?int {
+    $normalized = strtolower(trim($source ?? ''));
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (preg_match('/\b([1-9])00?\s*l?\b/', $normalized, $m)) {
+        return (int)$m[1];
+    }
+
+    if (preg_match('/\b([1-9])00?\b/', $normalized, $m)) {
+        return (int)$m[1];
+    }
+
+    if (preg_match('/\b([1-9])\d{2}\b/', $normalized, $m)) {
+        return (int)substr($m[1], 0, 1);
+    }
+
+    return null;
+}
+
+function course_code_level(string $courseCode): ?int {
+    $normalized = strtoupper(trim($courseCode ?? ''));
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (preg_match('/\d+/', $normalized, $digits)) {
+        $firstDigit = (string)$digits[0];
+        return (int)substr($firstDigit, 0, 1);
+    }
+
+    return null;
+}
+
+function matches_student_course_level(string $courseCode, ?int $studentLevel): bool {
+    if ($studentLevel === null) {
+        return true;
+    }
+    $courseLevel = course_code_level($courseCode);
+    return $courseLevel === null || $courseLevel === $studentLevel;
+}
+
 /**
  * Euclidean distance between two face-api.js 128-point face descriptors.
  * Returns null if the vectors are missing/mismatched in length.

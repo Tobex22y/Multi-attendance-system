@@ -23,7 +23,11 @@ if ($user && password_verify($password, $user['password_hash'])) {
     json_response([
         'success' => true,
         'role' => $user['role'],
-        'redirect' => $user['role'] === 'admin' ? 'admin-dashboard.html' : 'portal.html',
+        'redirect' => match ($user['role']) {
+            'admin' => 'admin-dashboard.html',
+            'employee' => 'lecturer-dashboard.html',
+            default => 'portal.html',
+        },
     ]);
 } else {
     json_response(['success' => false, 'message' => 'Invalid email or password.'], 401);

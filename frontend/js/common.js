@@ -52,7 +52,7 @@ function avatarUrl(name, photoPath) {
  * Redirects to index.html if not logged in, or to portal.html if an
  * admin-only page is hit by a non-admin. Returns the user object.
  */
-async function requireAuth({ adminOnly = false } = {}) {
+async function requireAuth({ adminOnly = false, lecturerOnly = false } = {}) {
   const { ok, data } = await apiFetch('auth/session.php');
   if (!ok || !data || !data.authenticated) {
     window.location.href = 'index.html';
@@ -62,10 +62,14 @@ async function requireAuth({ adminOnly = false } = {}) {
     window.location.href = 'portal.html';
     return null;
   }
+  if (lecturerOnly && !['employee', 'admin'].includes(data.user.role)) {
+    window.location.href = 'portal.html';
+    return null;
+  }
   return data.user;
 }
 
-/** Render the shared top navbar into #navbar. `active` is 'checkin' | 'portal' | 'admin'. */
+/** Render the shared top navbar into #navbar. `active` is 'checkin' | 'portal' | 'admin' | 'lecturer'. */
 function renderNavbar(user, active) {
   const el = document.getElementById('navbar');
   if (!el) return;
@@ -86,6 +90,10 @@ function renderNavbar(user, active) {
         <a class="nav-link ${active === 'portal' ? 'active' : ''}" href="portal.html">
           <i class="fa-solid fa-user"></i> My Portal &amp; Logs
         </a>
+        ${user.role === 'employee' ? `
+        <a class="nav-link ${active === 'lecturer' ? 'active' : ''}" href="lecturer-dashboard.html">
+          <i class="fa-solid fa-chalkboard-user"></i> Lecturer Dashboard
+        </a>` : ''}
         ${user.role === 'admin' ? `
         <a class="nav-link ${active === 'admin' ? 'active' : ''}" href="admin-dashboard.html">
           <i class="fa-solid fa-shield-halved"></i> Admin Dashboard

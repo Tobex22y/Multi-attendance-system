@@ -37,6 +37,16 @@ $stmt->bind_param('i', $user['id']);
 $stmt->execute();
 $sessions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+if ($user['role'] === 'student') {
+    $studentLevel = extract_student_level($user['department'] ?? '');
+    if ($studentLevel !== null) {
+        $sessions = array_values(array_filter(
+            $sessions,
+            fn($session) => matches_student_course_level($session['course_code'] ?? '', $studentLevel)
+        ));
+    }
+}
+
 $portalUser = public_user($user);
 unset($portalUser['qr_secret']);
 

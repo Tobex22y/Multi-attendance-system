@@ -76,10 +76,13 @@ DB_NAME=<database name>
 DB_USER=<database user>
 DB_PASS=<database password>
 DB_PORT=3306
+DB_SSL=1
 ```
 
 The application also accepts the equivalent `MYSQLHOST`, `MYSQLDATABASE`, `MYSQLUSER`,
-`MYSQLPASSWORD`, and `MYSQLPORT` names. After deployment, open
+`MYSQLPASSWORD`, and `MYSQLPORT` names. For Aiven, keep the downloaded CA certificate at
+`backend/config/ca.pem` and include it in the deployment. The connection verifies the
+Aiven server certificate using that file. After deployment, open
 `/backend/includes/seed_helper.php` once to create working demo password hashes, then sign
 in at `/frontend/html/index.html` with `admin@tech.com` / `admin`.
 

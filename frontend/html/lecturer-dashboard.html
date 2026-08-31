@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lecturer Dashboard — OmniAuth Attendance</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div id="navbar"></div>
+
+<div class="container">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div><div class="label">Course Sessions</div><div class="value" id="statSessions"></div><div class="sub">Open and closed</div></div>
+      <div class="stat-icon icon-green"><i class="fa-solid fa-calendar-check"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Students Marked</div><div class="value" id="statMarked"></div><div class="sub">Total check-ins</div></div>
+      <div class="stat-icon icon-amber"><i class="fa-solid fa-user-check"></i></div>
+    </div>
+    <div class="stat-card">
+      <div><div class="label">Activation</div><div class="value" id="statActive"></div><div class="sub">Currently open</div></div>
+      <div class="stat-icon icon-red"><i class="fa-solid fa-bolt"></i></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(280px, .8fr) minmax(320px, 1.2fr);gap:18px; margin-top:20px;">
+    <div class="panel">
+      <h3 style="margin-top:0;"><i class="fa-solid fa-calendar-plus" style="color:var(--green);"></i> Open Course Attendance</h3>
+      <form id="attendanceSessionForm">
+        <label>Course Code</label>
+        <input type="text" name="course_code" placeholder="e.g. CSC 412" required>
+        <label>Course Name</label>
+        <input type="text" name="course_name" placeholder="e.g. Distributed Systems" required>
+        <label>Starts</label>
+        <input type="datetime-local" name="starts_at" required>
+        <label>Ends</label>
+        <input type="datetime-local" name="ends_at" required>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label>Latitude</label><input type="number" step="any" name="latitude" id="sessionLat" required></div>
+          <div><label>Longitude</label><input type="number" step="any" name="longitude" id="sessionLng" required></div>
+        </div>
+        <button type="button" class="btn btn-outline btn-block" id="useSessionGpsBtn" style="margin-bottom:14px;">
+          <i class="fa-solid fa-location-crosshairs"></i> Pick My Current GPS
+        </button>
+        <label>Allowed Radius (meters)</label>
+        <input type="number" name="radius_m" value="100" min="10" required>
+        <div id="sessionGpsStatus" style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;"></div>
+        <button class="btn btn-primary btn-block" type="submit"><i class="fa-solid fa-play"></i> Open Attendance</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;"><i class="fa-solid fa-list-check" style="color:var(--green);"></i> Course Attendance Sessions</h3>
+      <div id="attendanceSessionList"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3 style="margin-top:0;"><i class="fa-solid fa-file-lines" style="color:var(--green);"></i> Attendance Logs</h3>
+    <table>
+      <thead><tr><th>Student</th><th>Course</th><th>Time</th><th>Status</th><th>Methods</th></tr></thead>
+      <tbody id="logsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="../js/common.js"></script>
+<script src="../js/lecturer.js"></script>
+</body>
+</html>

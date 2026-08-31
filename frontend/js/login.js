@@ -31,6 +31,11 @@
   // leave the sign-in form without a submit handler.
   const { ok, data } = await apiFetch('auth/session.php');
   if (ok && data && data.authenticated) {
-    window.location.href = data.user.role === 'admin' ? 'admin-dashboard.html' : 'portal.html';
+    const redirect = data.user.role === 'admin'
+      ? 'admin-dashboard.html'
+      : data.user.role === 'employee'
+        ? 'lecturer-dashboard.html'
+        : 'portal.html';
+    window.location.href = redirect;
   }
 })();

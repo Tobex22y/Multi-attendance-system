@@ -86,30 +86,6 @@ function wireModals() {
 }
 
 function wireForms() {
-  document.getElementById('attendanceSessionForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const { ok, data } = await apiFetch('admin/actions.php', {
-      method: 'POST',
-      body: {
-        action: 'create_attendance_session',
-        course_code: form.course_code.value.trim(),
-        course_name: form.course_name.value.trim(),
-        starts_at: form.starts_at.value,
-        ends_at: form.ends_at.value,
-        latitude: form.latitude.value,
-        longitude: form.longitude.value,
-        radius_m: form.radius_m.value,
-      },
-    });
-    if (ok && data && data.success) {
-      form.reset();
-      form.radius_m.value = 100;
-      document.getElementById('sessionGpsStatus').textContent = '';
-      await loadDashboard();
-    }
-  });
-
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;

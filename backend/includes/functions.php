@@ -73,6 +73,36 @@ function attach_badge(array $log): array {
     return $log;
 }
 
+function normalize_student_level($value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    if (is_int($value) || is_float($value)) {
+        $level = (int)$value;
+        return $level >= 1 && $level <= 5 ? $level : null;
+    }
+
+    $normalized = trim((string)$value);
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (preg_match('/\b([1-5])\s*0{2}\s*l?\b/i', $normalized, $m)) {
+        return (int)$m[1];
+    }
+
+    if (preg_match('/\b([1-5])\d{2}\s*l?\b/i', $normalized, $m)) {
+        return (int)$m[1];
+    }
+
+    if (preg_match('/\b([1-5])\b/', $normalized, $m)) {
+        return (int)$m[1];
+    }
+
+    return null;
+}
+
 function extract_student_level(string $source): ?int {
     $normalized = strtolower(trim($source ?? ''));
     if ($normalized === '') {
@@ -118,14 +148,15 @@ function course_code_level(string $courseCode): ?int {
 }
 
 function matches_student_course_level(string $courseCode, ?int $studentLevel): bool {
-    if ($studentLevel === null) {
+    $normalizedStudentLevel = normalize_student_level($studentLevel);
+    if ($normalizedStudentLevel === null) {
         return true;
     }
     $courseLevel = course_code_level($courseCode);
     if ($courseLevel === null) {
         return true;
     }
-    return $courseLevel === (int)$studentLevel;
+    return $courseLevel === $normalizedStudentLevel;
 }
 
 /**

@@ -42,8 +42,8 @@ if ($user['role'] === 'student') {
     if ($studentLevel === null) {
         $studentLevel = extract_student_level($user['department'] ?? '');
     }
-    if ($studentLevel !== null) {
-        $normalizedStudentLevel = (int)$studentLevel;
+    $normalizedStudentLevel = normalize_student_level($studentLevel);
+    if ($normalizedStudentLevel !== null) {
         $sessions = array_values(array_filter(
             $sessions,
             fn($session) => matches_student_course_level($session['course_code'] ?? '', $normalizedStudentLevel)

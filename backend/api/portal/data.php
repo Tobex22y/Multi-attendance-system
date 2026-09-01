@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
 
 $user = require_login();
+$conn->query("SET time_zone = '+01:00'");
 
 $stmt = $conn->prepare(
     'SELECT al.*, s.course_code, s.course_name

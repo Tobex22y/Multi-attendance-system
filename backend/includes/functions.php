@@ -79,16 +79,18 @@ function extract_student_level(string $source): ?int {
         return null;
     }
 
-    if (preg_match('/\b([1-9])00?\s*l?\b/', $normalized, $m)) {
-        return (int)$m[1];
-    }
+    $patterns = [
+        '/\b([1-5])00\s*l?\b/',
+        '/\b(?:level|year)\s*([1-5])00\b/',
+        '/\b(?:level|class)\s*([1-5])\d{2}\b/',
+        '/\b([1-5])\d{2}\s*l?\b/',
+        '/\b([1-5])\s*00\s*level\b/',
+    ];
 
-    if (preg_match('/\b([1-9])00?\b/', $normalized, $m)) {
-        return (int)$m[1];
-    }
-
-    if (preg_match('/\b([1-9])\d{2}\b/', $normalized, $m)) {
-        return (int)substr($m[1], 0, 1);
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $normalized, $m)) {
+            return (int)$m[1];
+        }
     }
 
     return null;
@@ -100,9 +102,16 @@ function course_code_level(string $courseCode): ?int {
         return null;
     }
 
+    if (preg_match('/\b([1-5])\d{2}\b/', $normalized, $digits)) {
+        return (int)$digits[1];
+    }
+
     if (preg_match('/\d+/', $normalized, $digits)) {
         $firstDigit = (string)$digits[0];
-        return (int)substr($firstDigit, 0, 1);
+        if (!preg_match('/^[1-5]$/', $firstDigit)) {
+            $firstDigit = (string)substr($firstDigit, 0, 1);
+        }
+        return is_numeric($firstDigit) ? (int)$firstDigit : null;
     }
 
     return null;
@@ -113,7 +122,10 @@ function matches_student_course_level(string $courseCode, ?int $studentLevel): b
         return true;
     }
     $courseLevel = course_code_level($courseCode);
-    return $courseLevel === null || $courseLevel === $studentLevel;
+    if ($courseLevel === null) {
+        return true;
+    }
+    return $courseLevel === (int)$studentLevel;
 }
 
 /**

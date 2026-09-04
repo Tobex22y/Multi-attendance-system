@@ -1,4 +1,4 @@
-/**
+/*
  * Multi-Factor Check-in Flow
  *
  * Simulations are intentionally preserved for testing:

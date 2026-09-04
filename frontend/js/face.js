@@ -34,17 +34,92 @@ async function ensureFaceModelsLoaded(onStatus) {
  * Detect a single face in a live <video> element and return its 128-point
  * descriptor as a plain JS array, or null if no face was found.
  */
+
 async function captureFaceDescriptor(videoEl, onStatus) {
     await ensureFaceModelsLoaded(onStatus);
-    if (onStatus) onStatus('Looking for a face…');
+
+    if (!videoEl) {
+        throw new Error('Face camera video element was not found.');
+    }
+
+    if (videoEl.readyState < 2) {
+        if (onStatus) {
+            onStatus('Waiting for camera video…');
+        }
+
+        await new Promise((resolve) => {
+            const checkVideo = () => {
+                if (videoEl.readyState >= 2) {
+                    resolve();
+                } else {
+                    setTimeout(checkVideo, 200);
+                }
+            };
+
+            checkVideo();
+        });
+    }
+
+    if (onStatus) {
+        onStatus('Looking for a face…');
+    }
+
+    /*
+     * Give the camera a moment to stabilize.
+     */
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    /*
+     * Use more suitable detector settings for webcam video.
+     *
+     * inputSize:
+     * Larger input = better chance of detecting a smaller face,
+     * at the cost of a little more processing.
+     *
+     * scoreThreshold:
+     * Lower value makes detection less strict.
+     */
+    const options = new faceapi.TinyFaceDetectorOptions({
+        inputSize: 416,
+        scoreThreshold: 0.35
+    });
 
     const detection = await faceapi
-        .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions())
+        .detectSingleFace(videoEl, options)
         .withFaceLandmarks()
         .withFaceDescriptor();
 
-    if (!detection || !detection.descriptor || detection.descriptor.length !== 128) return null;
-    return Array.from(detection.descriptor, Number);
+    if (!detection) {
+        if (onStatus) {
+            onStatus(
+                'Face not detected. Move closer, face the camera directly, and improve the lighting.'
+            );
+        }
+
+        return null;
+    }
+
+    if (
+        !detection.descriptor ||
+        detection.descriptor.length !== 128
+    ) {
+        if (onStatus) {
+            onStatus(
+                'Face detected, but the face descriptor could not be generated.'
+            );
+        }
+
+        return null;
+    }
+
+    if (onStatus) {
+        onStatus('Face detected successfully.');
+    }
+
+    return Array.from(
+        detection.descriptor,
+        Number
+    );
 }
 
 /** Open the device camera into a <video> element. Returns the MediaStream. */

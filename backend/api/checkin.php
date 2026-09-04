@@ -551,7 +551,7 @@ foreach ($requiredMethods as $requiredMethod) {
 */
 $graceMinutes = (int)get_setting(
     'grace_period_minutes',
-    15
+    20
 );
 
 /*

@@ -105,6 +105,7 @@ async function loadDashboard() {
         ` : `
             <span class="badge badge-gray">CLOSED</span>
         `}
+        
         </div>
       </div>`;
     }).join('');

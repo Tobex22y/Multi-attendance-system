@@ -213,13 +213,22 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--green); bor
 }
 
 .btn-qr {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    width: 90px;
+
     background: var(--green-bg);
     color: var(--green);
     border: 1px solid var(--green);
+
     font-weight: 600;
     font-size: 13px;
     padding: 8px 12px;
     border-radius: 8px;
+    cursor: pointer;
 }
 /* QR code modal styles */
 

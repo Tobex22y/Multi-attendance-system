@@ -148,7 +148,7 @@ let qrCountdownInterval = null;
 async function generateAttendanceQR(sessionId) {
     try {
         const { ok, data } = await apiFetch('lecturer/actions.php', {
-            method: 'GET',
+            method: 'POST',
             body: {
                 action: 'generate_attendance_qr',
                 session_id: sessionId

@@ -83,40 +83,6 @@ CREATE TABLE attendance_sessions (
 ) ENGINE=InnoDB;
 
 -- ----------------------------------------------------------
--- ATTENDANCE SESSION QR TOKENS
--- ----------------------------------------------------------
--- CREATE TABLE attendance_qr_tokens (
---   id            INT AUTO_INCREMENT PRIMARY KEY,
---   session_id    INT NOT NULL,
---   token_hash    CHAR(64) NOT NULL UNIQUE,
---   expires_at    DATETIME NOT NULL,
---   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
---   FOREIGN KEY (session_id)
---     REFERENCES attendance_sessions(id)
---     ON DELETE CASCADE,
-
---   INDEX idx_qr_session (session_id),
---   INDEX idx_qr_expiry (expires_at)
--- ) ENGINE=InnoDB;
-
-CREATE TABLE attendance_qr_tokens (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    session_id INT NOT NULL,
-    token_hash CHAR(64) NOT NULL,
-    expires_at DATETIME NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX idx_session_id (session_id),
-    INDEX idx_expires_at (expires_at),
-
-    CONSTRAINT fk_qr_session
-        FOREIGN KEY (session_id)
-        REFERENCES attendance_sessions(id)
-        ON DELETE CASCADE
-);
-
--- ----------------------------------------------------------
 -- ATTENDANCE LOGS
 -- ----------------------------------------------------------
 CREATE TABLE attendance_logs (
@@ -197,3 +163,38 @@ INSERT INTO users (user_code, full_name, email, password_hash, role, level, depa
 INSERT INTO settings (setting_key, setting_value) VALUES
   ('face_distance_threshold', '0.6');
 
+
+
+-- ----------------------------------------------------------
+-- ATTENDANCE SESSION QR TOKENS
+-- ----------------------------------------------------------
+-- CREATE TABLE attendance_qr_tokens (
+--   id            INT AUTO_INCREMENT PRIMARY KEY,
+--   session_id    INT NOT NULL,
+--   token_hash    CHAR(64) NOT NULL UNIQUE,
+--   expires_at    DATETIME NOT NULL,
+--   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+--   FOREIGN KEY (session_id)
+--     REFERENCES attendance_sessions(id)
+--     ON DELETE CASCADE,
+
+--   INDEX idx_qr_session (session_id),
+--   INDEX idx_qr_expiry (expires_at)
+-- ) ENGINE=InnoDB;
+
+CREATE TABLE attendance_qr_tokens (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_session_id (session_id),
+    INDEX idx_expires_at (expires_at),
+
+    CONSTRAINT fk_qr_session
+        FOREIGN KEY (session_id)
+        REFERENCES attendance_sessions(id)
+        ON DELETE CASCADE
+);

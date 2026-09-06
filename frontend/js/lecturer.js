@@ -105,7 +105,7 @@ async function loadDashboard() {
         ` : `
             <span class="badge badge-gray">CLOSED</span>
         `}
-        
+
         </div>
       </div>`;
     }).join('');
@@ -341,13 +341,4 @@ function closeAttendanceQR() {
     if (existing) {
         existing.remove();
     }
-}
-
-async function generateNewQRFromModal() {
-
-    /*
-     * Find the currently displayed session from the modal.
-     *
-     * We will store it globally when opening the modal.
-     */
 }

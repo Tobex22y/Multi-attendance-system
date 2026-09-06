@@ -121,6 +121,10 @@ a { color: inherit; text-decoration: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-block { width: 100%; }
 
+.btn-qr{
+  background: var(--green-bg); color: var(--green); border-color: var(--green);
+}
+
 /* ---------- Tables ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {

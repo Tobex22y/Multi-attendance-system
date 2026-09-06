@@ -81,16 +81,16 @@ async function loadDashboard() {
           <span style="font-size:12px;color:var(--text-dim);">${escapeHtml(session.starts_at)} to ${escapeHtml(session.ends_at)}</span><br>
           <span style="font-size:11px;color:var(--text-faint);">GPS: ${escapeHtml(session.latitude)}, ${escapeHtml(session.longitude)} · Radius: ${escapeHtml(session.radius_m)}m · ${escapeHtml(session.attendance_count)} marked</span></div>
           ${open ? `
-              <div style="display:flex;gap:8px;align-items:center;">
-                <button class="btn btn-danger" onclick="closeAttendanceSession(${session.id})">
-                    <i class="fa-solid fa-stop"></i> Close
-                </button>
+            <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+              <button class="btn btn-danger" onclick="closeAttendanceSession(${session.id})">
+                  <i class="fa-solid fa-stop"></i> Close
+              </button>
 
-                <button class="btn btn-qr" onclick="...">
-                    <i class="fa-solid fa-qrcode"></i> QR
-                </button>
-              </div>
-          ` : '<span class="badge badge-gray">CLOSED</span>'}
+              <button class="btn btn-qr" onclick="...">
+                  <i class="fa-solid fa-qrcode"></i> QR
+              </button>
+            </div>
+        ` : '<span class="badge badge-gray">CLOSED</span>'}
         </div>
       </div>`;
     }).join('');

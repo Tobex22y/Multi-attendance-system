@@ -208,3 +208,125 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--green); bor
   .nav-links { display: none; }
   .container { padding: 16px; }
 }
+
+/* QR code modal styles */
+
+.attendance-qr-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.attendance-qr-modal {
+    position: relative;
+
+    width: min(420px, 100%);
+
+    padding: 28px;
+
+    border: 1px solid var(--border);
+    border-radius: 16px;
+
+    background: var(--panel);
+
+    text-align: center;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.attendance-qr-close {
+    position: absolute;
+
+    top: 12px;
+    right: 12px;
+
+    width: 36px;
+    height: 36px;
+
+    border: 0;
+    border-radius: 50%;
+
+    background: transparent;
+    color: var(--text-dim);
+
+    cursor: pointer;
+
+    font-size: 18px;
+}
+
+.attendance-qr-close:hover {
+    background: var(--border);
+    color: var(--text);
+}
+
+.attendance-qr-header i {
+    font-size: 32px;
+    color: var(--green);
+
+    margin-bottom: 8px;
+}
+
+.attendance-qr-header h2 {
+    margin: 0 0 6px;
+}
+
+.attendance-qr-header p {
+    margin: 0 auto 20px;
+
+    max-width: 320px;
+
+    color: var(--text-dim);
+
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.attendance-qr-code {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 15px;
+
+    margin: 0 auto 16px;
+
+    width: fit-content;
+
+    border-radius: 12px;
+
+    background: #ffffff;
+}
+
+.attendance-qr-code canvas {
+    display: block;
+    max-width: 100%;
+}
+
+.attendance-qr-timer {
+    margin: 10px 0;
+
+    color: var(--text);
+
+    font-weight: 700;
+}
+
+.attendance-qr-timer i {
+    margin-right: 5px;
+    color: var(--green);
+}
+
+.attendance-qr-status {
+    margin-bottom: 18px;
+
+    color: var(--text-dim);
+
+    font-size: 12px;
+}

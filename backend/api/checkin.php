@@ -255,34 +255,140 @@ $status = 'on_time';
 
 /*
 |--------------------------------------------------------------------------
-| 1. QR VERIFICATION
+| 1. SESSION QR VERIFICATION
 |--------------------------------------------------------------------------
 |
-| The browser may claim QR verification, but the server checks the actual
-| QR secret against the logged-in user's stored secret.
+| The QR code belongs to the lecturer's attendance session.
+|
+| The token is:
+|   - generated server-side
+|   - cryptographically random
+|   - stored as a SHA-256 hash
+|   - short-lived
+|   - replaced whenever the lecturer generates a new QR
+|
+| The server is the final authority.
+|--------------------------------------------------------------------------
 */
-if (empty($collected['QR']) || empty($collected['QR']['verified'])) {
+
+if (
+    empty($collected['QR']) ||
+    empty($collected['QR']['verified'])
+) {
     checkin_error(
         'QR verification was not completed.'
     );
 }
 
-$scannedCode = (string)($collected['QR']['code'] ?? '');
+$scannedCode = trim(
+    (string)($collected['QR']['code'] ?? '')
+);
 
 if ($scannedCode === '') {
     checkin_error(
-        'No QR code was submitted.'
+        'No attendance QR code was submitted.'
     );
 }
 
-if (!hash_equals((string)$user['qr_secret'], $scannedCode)) {
+/*
+ * Session QR tokens are 64 hexadecimal characters.
+ */
+if (!preg_match('/^[a-f0-9]{64}$/i', $scannedCode)) {
     checkin_error(
-        'QR code does not match your digital badge. Please rescan.'
+        'Invalid attendance QR code.'
     );
 }
 
+/*
+ * Hash the submitted token.
+ */
+$scannedTokenHash = hash(
+    'sha256',
+    $scannedCode
+);
+
+/*
+ * Find the current valid QR token for this session.
+ */
+$qrStmt = $conn->prepare(
+    'SELECT
+        id,
+        token_hash,
+        expires_at
+     FROM attendance_qr_tokens
+     WHERE session_id = ?
+       AND token_hash = ?
+     LIMIT 1'
+);
+
+if (!$qrStmt) {
+    checkin_error(
+        'Database error while preparing QR verification: ' .
+        $conn->error,
+        500
+    );
+}
+
+$qrStmt->bind_param(
+    'is',
+    $sessionId,
+    $scannedTokenHash
+);
+
+if (!$qrStmt->execute()) {
+    checkin_error(
+        'Database error while verifying attendance QR: ' .
+        $qrStmt->error,
+        500
+    );
+}
+
+$qrToken = $qrStmt
+    ->get_result()
+    ->fetch_assoc();
+
+if (!$qrToken) {
+    checkin_error(
+        'This attendance QR code is invalid or has been replaced. Please scan the current QR code.'
+    );
+}
+
+/*
+ * Convert QR expiration to Lagos time.
+ */
+try {
+
+    $qrExpiresAt = new DateTime(
+        $qrToken['expires_at'],
+        new DateTimeZone('Africa/Lagos')
+    );
+
+} catch (Exception $e) {
+
+    checkin_error(
+        'Invalid QR expiration configuration.',
+        500
+    );
+}
+
+/*
+ * Reject expired QR codes.
+ */
+if ($now > $qrExpiresAt) {
+
+    checkin_error(
+        'This attendance QR code has expired. Please scan the new QR code displayed by your lecturer.'
+    );
+}
+
+/*
+ * The QR token must belong to THIS attendance session.
+ *
+ * The SQL query already enforces this using session_id.
+ */
 $qrVerified = 1;
 $methodsUsed[] = 'QR';
+
 
 /*
 |--------------------------------------------------------------------------

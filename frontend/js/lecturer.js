@@ -82,13 +82,18 @@ async function loadDashboard() {
           <span style="font-size:11px;color:var(--text-faint);">GPS: ${escapeHtml(session.latitude)}, ${escapeHtml(session.longitude)} · Radius: ${escapeHtml(session.radius_m)}m · ${escapeHtml(session.attendance_count)} marked</span></div>
           ${open ? `
             <div class="session-actions">
+
               <button class="btn btn-danger" onclick="closeAttendanceSession(${session.id})">
                 <i class="fa-solid fa-stop"></i> Close
               </button>
 
-              <button class="btn btn-qr" onclick="...">
-                <i class="fa-solid fa-qrcode"></i> QR
+              <button
+                  class="btn btn-qr"
+                  onclick="generateAttendanceQR(${session.id})"
+              >
+                  <i class="fa-solid fa-qrcode"></i> QR
               </button>
+
             </div>
           ` : '<span class="badge badge-gray">CLOSED</span>'}
         </div>
@@ -123,4 +128,215 @@ async function closeAttendanceSession(sessionId) {
     body: { action: 'close_attendance_session', session_id: sessionId },
   });
   if (ok && data && data.success) await loadDashboard();
+}
+
+let currentQrSessionId = null;
+let qrModal = null;
+let qrCountdownInterval = null;
+
+async function generateAttendanceQR(sessionId) {
+    try {
+        const { ok, data } = await apiFetch('lecturer/actions.php', {
+            method: 'POST',
+            body: {
+                action: 'generate_attendance_qr',
+                session_id: sessionId
+            }
+        });
+
+        if (!ok || !data || !data.success) {
+            alert(
+                data?.message ||
+                'Unable to generate attendance QR code.'
+            );
+            return;
+        }
+
+        currentQrSessionId = sessionId;
+
+        showAttendanceQR(
+            data.token,
+            data.expires_in || 60
+        );
+
+    } catch (error) {
+        console.error(error);
+
+        alert(
+            'Unable to communicate with the attendance server.'
+        );
+    }
+}
+
+async function generateNewQRFromModal() {
+
+    if (!currentQrSessionId) {
+        return;
+    }
+
+    await generateAttendanceQR(currentQrSessionId);
+}
+
+function showAttendanceQR(token, expiresIn) {
+
+    closeAttendanceQR();
+
+    qrModal = document.createElement('div');
+
+    qrModal.id = 'attendanceQrModal';
+
+    qrModal.innerHTML = `
+        <div class="attendance-qr-overlay">
+
+            <div class="attendance-qr-modal">
+
+                <button
+                    class="attendance-qr-close"
+                    onclick="closeAttendanceQR()"
+                    aria-label="Close QR"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+                <div class="attendance-qr-header">
+                    <i class="fa-solid fa-qrcode"></i>
+
+                    <h2>Attendance QR Code</h2>
+
+                    <p>
+                        Students should scan this code to verify
+                        their attendance session.
+                    </p>
+                </div>
+
+                <div class="attendance-qr-code">
+                    <canvas id="attendanceQrCanvas"></canvas>
+                </div>
+
+                <div class="attendance-qr-timer">
+                    <i class="fa-solid fa-clock"></i>
+
+                    <span id="attendanceQrCountdown">
+                        ${expiresIn}s
+                    </span>
+                </div>
+
+                <div
+                    id="attendanceQrStatus"
+                    class="attendance-qr-status"
+                >
+                    Active — students can scan now.
+                </div>
+
+                <button
+                    class="btn btn-outline"
+                    onclick="generateNewQRFromModal()"
+                >
+                    <i class="fa-solid fa-rotate"></i>
+                    Generate New QR
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(qrModal);
+
+    const canvas = document.getElementById(
+        'attendanceQrCanvas'
+    );
+
+    /*
+     * Requires QRCode library.
+     */
+    QRCode.toCanvas(
+        canvas,
+        token,
+        {
+            width: 280,
+            margin: 2
+        },
+        function (error) {
+
+            if (error) {
+                console.error(error);
+
+                document.getElementById(
+                    'attendanceQrStatus'
+                ).textContent =
+                    'Unable to render QR code.';
+            }
+        }
+    );
+
+    startQrCountdown(expiresIn);
+}
+
+function startQrCountdown(seconds) {
+
+    if (qrCountdownInterval) {
+        clearInterval(qrCountdownInterval);
+    }
+
+    let remaining = seconds;
+
+    const countdownEl = document.getElementById(
+        'attendanceQrCountdown'
+    );
+
+    const statusEl = document.getElementById(
+        'attendanceQrStatus'
+    );
+
+    countdownEl.textContent = `${remaining}s`;
+
+    qrCountdownInterval = setInterval(() => {
+
+        remaining--;
+
+        countdownEl.textContent = `${remaining}s`;
+
+        if (remaining <= 0) {
+
+            clearInterval(qrCountdownInterval);
+            qrCountdownInterval = null;
+
+            statusEl.textContent =
+                'This QR code has expired. Generate a new one.';
+
+            countdownEl.textContent = 'Expired';
+        }
+
+    }, 1000);
+}
+
+function closeAttendanceQR() {
+
+    if (qrCountdownInterval) {
+        clearInterval(qrCountdownInterval);
+        qrCountdownInterval = null;
+    }
+
+    if (qrModal) {
+        qrModal.remove();
+        qrModal = null;
+    }
+
+    const existing = document.getElementById(
+        'attendanceQrModal'
+    );
+
+    if (existing) {
+        existing.remove();
+    }
+}
+
+async function generateNewQRFromModal() {
+
+    /*
+     * Find the currently displayed session from the modal.
+     *
+     * We will store it globally when opening the modal.
+     */
 }

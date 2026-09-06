@@ -265,7 +265,7 @@ function wireQr() {
                     imageData.height
                 );
 
-                if (!code || !code.data) return;
+                if (!code.data) return;
 
                 clearInterval(qrScanInterval);
                 qrScanInterval = null;
@@ -273,22 +273,16 @@ function wireQr() {
                 stopCamera(qrStream);
                 qrStream = null;
 
-                if (code.data === QR_SECRET) {
-                    statusEl.innerHTML =
-                        '<i class="fa-solid fa-circle-check" ' +
-                        'style="color:var(--green);"></i> Badge verified!';
+                statusEl.textContent =
+                    'QR code captured. Verifying with attendance server…';
 
-                    collected.QR = {
-                        verified: true,
-                        code: code.data,
-                        simulated: false
-                    };
+                collected.QR = {
+                    verified: true,
+                    code: code.data,
+                    simulated: false
+                };
 
-                    setTimeout(() => advanceStep('QR'), 500);
-                } else {
-                    statusEl.textContent =
-                        'That QR code doesn’t match your badge. Try again or use simulate.';
-                }
+                setTimeout(() => advanceStep('QR'), 500);
             }, 350);
 
         } catch (e) {
@@ -299,7 +293,8 @@ function wireQr() {
         }
     });
 
-    simBtn.addEventListener('click', () => {
+    simBtn.addEventListener('click', async () => {
+
         if (qrScanInterval) {
             clearInterval(qrScanInterval);
             qrScanInterval = null;
@@ -308,17 +303,63 @@ function wireQr() {
         stopCamera(qrStream);
         qrStream = null;
 
-        collected.QR = {
-            verified: true,
-            code: QR_SECRET,
-            simulated: true
-        };
+        statusEl.textContent =
+            'Simulation mode: requesting a valid session QR…';
 
-        statusEl.innerHTML =
-            '<i class="fa-solid fa-circle-check" ' +
-            'style="color:var(--green);"></i> Simulated badge verified!';
+        /*
+        * Simulation is still allowed in the UI,
+        * but we obtain the actual current session QR
+        * from the server instead of inventing a token.
+        *
+        * For a production system, this button should eventually
+        * be removed or restricted to demo/admin mode.
+        */
 
-        setTimeout(() => advanceStep('QR'), 500);
+        try {
+
+            const { ok, data } = await apiFetch(
+                'lecturer/actions.php',
+                {
+                    method: 'POST',
+                    body: {
+                        action: 'generate_attendance_qr',
+                        session_id: SESSION_ID
+                    }
+                }
+            );
+
+            if (!ok || !data || !data.success) {
+
+                statusEl.textContent =
+                    data?.message ||
+                    'Unable to generate simulation QR.';
+
+                return;
+            }
+
+            collected.QR = {
+                verified: true,
+                code: data.token,
+                simulated: true
+            };
+
+            statusEl.innerHTML =
+                '<i class="fa-solid fa-circle-check" ' +
+                'style="color:var(--green);"></i> ' +
+                'Simulated session QR verified!';
+
+            setTimeout(
+                () => advanceStep('QR'),
+                500
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+            statusEl.textContent =
+                'Unable to generate simulation QR.';
+        }
     });
 }
 

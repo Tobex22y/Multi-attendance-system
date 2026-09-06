@@ -83,22 +83,32 @@ async function loadDashboard() {
           ${open ? `
             <div class="session-actions">
 
-              <button class="btn btn-danger" onclick="closeAttendanceSession(${session.id})">
-                <i class="fa-solid fa-stop"></i> Close
-              </button>
+                <button
+                    type="button"
+                    class="btn btn-danger"
+                    onclick="closeAttendanceSession(${session.id})"
+                >
+                    <i class="fa-solid fa-stop"></i>
+                    Close
+                </button>
 
-              <button
-                  class="btn btn-qr"
-                  onclick="generateAttendanceQR(${session.id})"
-              >
-                  <i class="fa-solid fa-qrcode"></i> QR
-              </button>
+                <button
+                    type="button"
+                    class="btn btn-qr"
+                    onclick="generateAttendanceQR(${session.id})"
+                >
+                    <i class="fa-solid fa-qrcode"></i>
+                    QR
+                </button>
 
             </div>
-          ` : '<span class="badge badge-gray">CLOSED</span>'}
+        ` : `
+            <span class="badge badge-gray">CLOSED</span>
+        `}
         </div>
       </div>`;
     }).join('');
+    
   }
 
   const logsBody = document.getElementById('logsBody');

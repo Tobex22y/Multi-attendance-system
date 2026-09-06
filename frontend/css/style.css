@@ -121,15 +121,6 @@ a { color: inherit; text-decoration: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-block { width: 100%; }
 
-.session-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.btn-qr{
-  background: var(--green-bg); color: var(--green); border-color: var(--green);
-}
 
 /* ---------- Tables ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -209,6 +200,27 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--green); bor
   .container { padding: 16px; }
 }
 
+/* QR */
+.session-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.session-actions .btn {
+    width: 90px;
+}
+
+.btn-qr {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
 /* QR code modal styles */
 
 .attendance-qr-overlay {

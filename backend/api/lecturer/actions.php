@@ -177,9 +177,9 @@ switch ($action) {
         // Store only the hash
         $tokenHash = hash('sha256', $token);
 
-        // QR expires after 60 seconds
+        // QR expires after 180 seconds
         $expiresAt = clone $now;
-        $expiresAt->modify('+60 seconds');
+        $expiresAt->modify('+180 seconds');
 
         $expiresString = $expiresAt->format('Y-m-d H:i:s');
 

@@ -216,6 +216,20 @@ function qrStepHTML() {
     `;
 }
 
+async function openQRScannerCamera(video) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: { ideal: "environment" }
+        },
+        audio: false
+    });
+
+    video.srcObject = stream;
+    await video.play();
+
+    return stream;
+}
+
 let qrStream = null;
 let qrScanInterval = null;
 
@@ -228,7 +242,7 @@ function wireQr() {
         try {
             const video = document.getElementById('qrVideo');
 
-            qrStream = await openCamera(video);
+            qrStream = await openQRScannerCamera(video);
 
             video.style.display = 'block';
             document.getElementById('qrFallback').style.display = 'none';

@@ -238,7 +238,7 @@ switch ($action) {
             'session_id' => $sessionId,
             'token' => $token,
             'expires_at' => $expiresString,
-            'expires_in' => 60
+            'expires_in' => 180
         ]);
     }
 

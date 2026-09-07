@@ -167,7 +167,7 @@ async function generateAttendanceQR(sessionId) {
 
         showAttendanceQR(
             data.token,
-            data.expires_in || 60
+            data.expires_in || 180
         );
 
     } catch (error) {

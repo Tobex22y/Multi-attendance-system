@@ -12,7 +12,7 @@ if ($user['role'] !== 'admin') {
     $sessionSql .= ' WHERE s.created_by = ?';
 }
 
-$sessionSql .= ' GROUP BY s.id ORDER BY s.starts_at DESC LIMIT 50';
+$sessionSql .= ' GROUP BY s.id ORDER BY s.starts_at DESC LIMIT 200';
 
 $stmt = $conn->prepare($sessionSql);
 if ($user['role'] !== 'admin') {
@@ -30,7 +30,7 @@ if ($user['role'] !== 'admin') {
     $logSql .= ' WHERE s.created_by = ?';
 }
 
-$logSql .= ' ORDER BY al.check_in_time DESC LIMIT 100';
+$logSql .= ' ORDER BY al.check_in_time DESC LIMIT 200';
 
 $logStmt = $conn->prepare($logSql);
 if ($user['role'] !== 'admin') {

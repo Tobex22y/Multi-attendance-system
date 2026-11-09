@@ -1,142 +1,787 @@
 <?php
+
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-$user = require_login(); // sends a 401 JSON response and stops if not logged in
+/*
+|--------------------------------------------------------------------------
+| APPLICATION TIMEZONE
+|--------------------------------------------------------------------------
+| Nigeria uses West Africa Time (UTC+1).
+| We use PHP's timezone instead of relying on MySQL NOW(), because the
+| database server may be running in UTC.
+*/
+date_default_timezone_set('Africa/Lagos');
 
-$body = json_decode(file_get_contents('php://input'), true);
-if (!$body) {
-    json_response(['ok' => false, 'message' => 'Invalid request payload.'], 422);
+$user = require_login();
+
+header('Content-Type: application/json; charset=utf-8');
+
+/*
+|--------------------------------------------------------------------------
+| Helper: return a JSON error and stop execution
+|--------------------------------------------------------------------------
+*/
+function checkin_error(string $message, int $statusCode = 422, array $extra = []): void
+{
+    json_response(
+        array_merge(
+            [
+                'ok' => false,
+                'message' => $message
+            ],
+            $extra
+        ),
+        $statusCode
+    );
 }
 
-$collected = $body['collected'] ?? [];
+/*
+|--------------------------------------------------------------------------
+| Read request
+|--------------------------------------------------------------------------
+*/
+$rawBody = file_get_contents('php://input');
+$body = json_decode($rawBody, true);
+
+if (!is_array($body)) {
+    checkin_error('Invalid request payload.', 422);
+}
+
 $sessionId = (int)($body['session_id'] ?? 0);
+$collected = $body['collected'] ?? [];
+
+if (!is_array($collected)) {
+    checkin_error('Invalid verification data.', 422);
+}
+
+/*
+|--------------------------------------------------------------------------
+| REQUIRED METHODS
+|--------------------------------------------------------------------------
+| The server determines the required methods.
+| Do NOT trust the methods array sent by JavaScript.
+|
+| Default:
+|   QR + GPS + FACE
+|
+| Fingerprint is additionally required if the logged-in user has enrolled
+| a fingerprint.
+*/
+$requiredMethods = ['QR', 'GPS', 'FACE'];
+
+if (!empty($user['fingerprint_enrolled'])) {
+    $requiredMethods[] = 'FINGERPRINT';
+}
+
+/*
+|--------------------------------------------------------------------------
+| Current application time
+|--------------------------------------------------------------------------
+*/
+$now = new DateTime('now', new DateTimeZone('Africa/Lagos'));
+
+/*
+|--------------------------------------------------------------------------
+| Session validation
+|--------------------------------------------------------------------------
+*/
+$session = null;
+
+if ($sessionId <= 0) {
+    checkin_error('A valid attendance session is required.', 422);
+}
+
+$sessionStmt = $conn->prepare(
+    'SELECT
+        id,
+        course_code,
+        course_name,
+        starts_at,
+        ends_at,
+        latitude,
+        longitude,
+        radius_m,
+        is_active
+     FROM attendance_sessions
+     WHERE id = ?
+     LIMIT 1'
+);
+
+if (!$sessionStmt) {
+    checkin_error(
+        'Database error while preparing the attendance session query: ' . $conn->error,
+        500
+    );
+}
+
+$sessionStmt->bind_param('i', $sessionId);
+
+if (!$sessionStmt->execute()) {
+    checkin_error(
+        'Database error while checking the attendance session: ' . $sessionStmt->error,
+        500
+    );
+}
+
+$result = $sessionStmt->get_result();
+$session = $result->fetch_assoc();
+
+if (!$session) {
+    checkin_error(
+        'Attendance session #' . $sessionId . ' was not found.',
+        404
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Convert database session times to PHP DateTime
+|--------------------------------------------------------------------------
+|
+| The DATETIME values are interpreted as Africa/Lagos time.
+| This avoids depending on MySQL's timezone configuration.
+*/
+try {
+    $sessionStart = new DateTime(
+        $session['starts_at'],
+        new DateTimeZone('Africa/Lagos')
+    );
+
+    $sessionEnd = new DateTime(
+        $session['ends_at'],
+        new DateTimeZone('Africa/Lagos')
+    );
+} catch (Exception $e) {
+    checkin_error(
+        'Invalid attendance session time configuration: ' . $e->getMessage(),
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| SERVER-SIDE SESSION OPEN CHECK
+|--------------------------------------------------------------------------
+*/
+if ((int)$session['is_active'] !== 1) {
+    checkin_error(
+        'This course attendance session is not active.'
+    );
+}
+
+if ($now < $sessionStart) {
+    checkin_error(
+        'This course attendance session has not started yet.',
+        422,
+        [
+            'server_time' => $now->format('Y-m-d H:i:s'),
+            'session_start' => $sessionStart->format('Y-m-d H:i:s')
+        ]
+    );
+}
+
+if ($now > $sessionEnd) {
+    checkin_error(
+        'This course attendance session has already ended.',
+        422,
+        [
+            'server_time' => $now->format('Y-m-d H:i:s'),
+            'session_end' => $sessionEnd->format('Y-m-d H:i:s')
+        ]
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| DUPLICATE ATTENDANCE CHECK
+|--------------------------------------------------------------------------
+*/
+$duplicateStmt = $conn->prepare(
+    'SELECT id
+     FROM attendance_logs
+     WHERE user_id = ?
+       AND session_id = ?
+     LIMIT 1'
+);
+
+if (!$duplicateStmt) {
+    checkin_error(
+        'Database error while checking previous attendance: ' . $conn->error,
+        500
+    );
+}
+
+$duplicateStmt->bind_param(
+    'ii',
+    $user['id'],
+    $sessionId
+);
+
+if (!$duplicateStmt->execute()) {
+    checkin_error(
+        'Database error while checking previous attendance: ' . $duplicateStmt->error,
+        500
+    );
+}
+
+if ($duplicateStmt->get_result()->num_rows > 0) {
+    checkin_error(
+        'You have already marked attendance for this course.',
+        409
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| VERIFICATION VARIABLES
+|--------------------------------------------------------------------------
+*/
 $methodsUsed = [];
-$gpsLat = $gpsLng = $distance = null;
-$geofenceId = null;
-$faceMatch = null;
+
 $qrVerified = 0;
+
+$gpsVerified = false;
+$gpsLat = null;
+$gpsLng = null;
+$distance = null;
+
+$faceVerified = false;
+$faceMatch = null;
+
 $fingerprintVerified = 0;
+
 $status = 'on_time';
 
-$session = null;
-if ($sessionId > 0) {
-    $sessionStmt = $conn->prepare(
-        'SELECT * FROM attendance_sessions
-         WHERE id = ? AND is_active = 1 AND starts_at <= NOW() AND ends_at >= NOW()
-         LIMIT 1'
+/*
+|--------------------------------------------------------------------------
+| 1. SESSION QR VERIFICATION
+|--------------------------------------------------------------------------
+|
+| The QR code belongs to the lecturer's attendance session.
+|
+| The token is:
+|   - generated server-side
+|   - cryptographically random
+|   - stored as a SHA-256 hash
+|   - short-lived
+|   - replaced whenever the lecturer generates a new QR
+|
+| The server is the final authority.
+|--------------------------------------------------------------------------
+*/
+
+if (
+    empty($collected['QR']) ||
+    empty($collected['QR']['verified'])
+) {
+    checkin_error(
+        'QR verification was not completed.'
     );
-    $sessionStmt->bind_param('i', $sessionId);
-    $sessionStmt->execute();
-    $session = $sessionStmt->get_result()->fetch_assoc();
-    if (!$session) {
-        json_response(['ok' => false, 'message' => 'This course attendance session is not currently open.'], 422);
+}
+
+$scannedCode = trim(
+    (string)($collected['QR']['code'] ?? '')
+);
+
+if ($scannedCode === '') {
+    checkin_error(
+        'No attendance QR code was submitted.'
+    );
+}
+
+/*
+ * Session QR tokens are 64 hexadecimal characters.
+ */
+if (!preg_match('/^[a-f0-9]{64}$/i', $scannedCode)) {
+    checkin_error(
+        'Invalid attendance QR code.'
+    );
+}
+
+/*
+ * Hash the submitted token.
+ */
+$scannedTokenHash = hash(
+    'sha256',
+    $scannedCode
+);
+
+/*
+ * Find the current valid QR token for this session.
+ */
+$qrStmt = $conn->prepare(
+    'SELECT
+        id,
+        token_hash,
+        expires_at
+     FROM attendance_qr_tokens
+     WHERE session_id = ?
+       AND token_hash = ?
+     LIMIT 1'
+);
+
+if (!$qrStmt) {
+    checkin_error(
+        'Database error while preparing QR verification: ' .
+        $conn->error,
+        500
+    );
+}
+
+$qrStmt->bind_param(
+    'is',
+    $sessionId,
+    $scannedTokenHash
+);
+
+if (!$qrStmt->execute()) {
+    checkin_error(
+        'Database error while verifying attendance QR: ' .
+        $qrStmt->error,
+        500
+    );
+}
+
+$qrToken = $qrStmt
+    ->get_result()
+    ->fetch_assoc();
+
+if (!$qrToken) {
+    checkin_error(
+        'This attendance QR code is invalid or has been replaced. Please scan the current QR code.'
+    );
+}
+
+/*
+ * Convert QR expiration to Lagos time.
+ */
+try {
+
+    $qrExpiresAt = new DateTime(
+        $qrToken['expires_at'],
+        new DateTimeZone('Africa/Lagos')
+    );
+
+} catch (Exception $e) {
+
+    checkin_error(
+        'Invalid QR expiration configuration.',
+        500
+    );
+}
+
+/*
+ * Reject expired QR codes.
+ */
+if ($now > $qrExpiresAt) {
+
+    checkin_error(
+        'This attendance QR code has expired. Please scan the new QR code displayed by your lecturer.'
+    );
+}
+
+/*
+ * The QR token must belong to THIS attendance session.
+ *
+ * The SQL query already enforces this using session_id.
+ */
+$qrVerified = 1;
+$methodsUsed[] = 'QR';
+
+
+/*
+|--------------------------------------------------------------------------
+| 2. GPS VERIFICATION
+|--------------------------------------------------------------------------
+|
+| GPS coordinates come from the browser, but the SERVER calculates the
+| distance and decides whether the user is inside the session geofence.
+*/
+if (
+    !isset($collected['GPS']) ||
+    !isset($collected['GPS']['lat']) ||
+    !isset($collected['GPS']['lng'])
+) {
+    checkin_error(
+        'GPS verification was not completed.'
+    );
+}
+
+$gpsLat = (float)$collected['GPS']['lat'];
+$gpsLng = (float)$collected['GPS']['lng'];
+
+/*
+| Basic coordinate validation.
+*/
+if (
+    !is_finite($gpsLat) ||
+    !is_finite($gpsLng) ||
+    $gpsLat < -90 ||
+    $gpsLat > 90 ||
+    $gpsLng < -180 ||
+    $gpsLng > 180
+) {
+    checkin_error(
+        'Invalid GPS coordinates were submitted.'
+    );
+}
+
+/*
+| IMPORTANT:
+| Simulated GPS is NOT accepted by the server.
+*/
+if (!empty($collected['GPS']['simulated'])) {
+    checkin_error(
+        'Simulated GPS coordinates cannot be used for attendance.'
+    );
+}
+
+/*
+| Calculate distance from the attendance session location.
+*/
+$distance = (int)round(
+    gps_distance_meters(
+        $gpsLat,
+        $gpsLng,
+        (float)$session['latitude'],
+        (float)$session['longitude']
+    )
+);
+
+$allowedRadius = (int)$session['radius_m'];
+
+if ($distance > $allowedRadius) {
+    checkin_error(
+        'You are outside the attendance geofence.',
+        422,
+        [
+            'distance' => $distance . 'm',
+            'allowed_radius' => $allowedRadius . 'm'
+        ]
+    );
+}
+
+$gpsVerified = true;
+$methodsUsed[] = 'GPS';
+
+/*
+|--------------------------------------------------------------------------
+| 3. FACE VERIFICATION
+|--------------------------------------------------------------------------
+|
+| The client sends a 128-value face descriptor.
+| The server compares it with the enrolled descriptor.
+|
+| IMPORTANT:
+| A missing face descriptor is NOT accepted.
+| A user without an enrolled face cannot pass this required verification.
+*/
+if (
+    !isset($collected['FACE']) ||
+    !array_key_exists('descriptor', $collected['FACE'])
+) {
+    checkin_error(
+        'Face verification was not completed.'
+    );
+}
+
+$descriptor = $collected['FACE']['descriptor'];
+
+if (!is_array($descriptor)) {
+    checkin_error(
+        'Invalid face descriptor submitted.'
+    );
+}
+
+if (count($descriptor) !== 128) {
+    checkin_error(
+        'Invalid face descriptor. A 128-value face descriptor is required.'
+    );
+}
+
+/*
+| The user must have an enrolled face.
+*/
+if (empty($user['face_enrolled']) || empty($user['face_template'])) {
+    checkin_error(
+        'Face verification is required, but no enrolled face is available for your account.'
+    );
+}
+
+$storedTemplate = json_decode(
+    $user['face_template'],
+    true
+);
+
+if (!is_array($storedTemplate) || count($storedTemplate) !== 128) {
+    checkin_error(
+        'Your enrolled face template is invalid. Please enroll your face again or contact an administrator.',
+        500
+    );
+}
+
+/*
+| Make sure every descriptor value is numeric and finite.
+*/
+foreach ($descriptor as $value) {
+    if (!is_numeric($value) || !is_finite((float)$value)) {
+        checkin_error(
+            'Invalid face descriptor values were submitted.'
+        );
     }
-    $duplicateStmt = $conn->prepare('SELECT id FROM attendance_logs WHERE user_id = ? AND session_id = ? LIMIT 1');
-    $duplicateStmt->bind_param('ii', $user['id'], $sessionId);
-    $duplicateStmt->execute();
-    if ($duplicateStmt->get_result()->num_rows > 0) {
-        json_response(['ok' => false, 'message' => 'You have already marked attendance for this course.'], 409);
+}
+
+/*
+| Calculate server-side face distance.
+*/
+$faceDistance = face_euclidean_distance(
+    $storedTemplate,
+    $descriptor
+);
+
+if ($faceDistance === null || !is_finite((float)$faceDistance)) {
+    checkin_error(
+        'Face comparison could not be completed.',
+        500
+    );
+}
+
+$faceMatch = face_distance_to_percent($faceDistance);
+
+/*
+| Server-controlled face distance threshold.
+*/
+$threshold = (float)get_setting(
+    'face_distance_threshold',
+    0.6
+);
+
+if ($faceDistance > $threshold) {
+    checkin_error(
+        'Face verification failed. The captured face does not match the enrolled face.',
+        422,
+        [
+            'face_match' => $faceMatch . '%'
+        ]
+    );
+}
+
+$faceVerified = true;
+$methodsUsed[] = 'FACE';
+
+/*
+|--------------------------------------------------------------------------
+| 4. FINGERPRINT / WEBAUTHN
+|--------------------------------------------------------------------------
+|
+| If fingerprint enrollment is enabled for the account, it is required.
+|
+| IMPORTANT:
+| The old code accepted:
+|
+|     { verified: true }
+|
+| from JavaScript without any real server-side proof.
+|
+| That is NOT secure and is therefore rejected here.
+|
+| A proper implementation must send a WebAuthn assertion generated by
+| navigator.credentials.get() and verify it server-side.
+*/
+if (!empty($user['fingerprint_enrolled'])) {
+
+    /*
+    | For now, do NOT accept the old fake "verified: true" flag.
+    */
+    if (
+        empty($collected['FINGERPRINT']) ||
+        empty($collected['FINGERPRINT']['assertion'])
+    ) {
+        checkin_error(
+            'Fingerprint verification is required, but no valid WebAuthn assertion was submitted.'
+        );
+    }
+
+    /*
+    | The actual WebAuthn verification should be performed here.
+    |
+    | Your current project does not provide a WebAuthn server verification
+    | function in the code supplied so far.
+    |
+    | We deliberately refuse to mark it as verified rather than pretending
+    | that a client-side flag is secure.
+    */
+    checkin_error(
+        'Fingerprint verification requires server-side WebAuthn validation. The biometric assertion was received, but a WebAuthn verification handler has not been configured yet.',
+        501
+    );
+
+} else {
+
+    /*
+    | Fingerprint is not required for this user.
+    */
+    $fingerprintVerified = 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| FINAL REQUIRED-METHOD CHECK
+|--------------------------------------------------------------------------
+|
+| This is the server's final gate.
+*/
+$verificationState = [
+    'QR' => $qrVerified === 1,
+    'GPS' => $gpsVerified === true,
+    'FACE' => $faceVerified === true,
+];
+
+if (in_array('FINGERPRINT', $requiredMethods, true)) {
+    $verificationState['FINGERPRINT'] = $fingerprintVerified === 1;
+}
+
+foreach ($requiredMethods as $requiredMethod) {
+    if (empty($verificationState[$requiredMethod])) {
+        checkin_error(
+            $requiredMethod . ' verification was not successfully completed.'
+        );
     }
 }
 
-// --- QR ---
-if (!empty($collected['QR']['verified'])) {
-    $scannedCode = $collected['QR']['code'] ?? '';
-    if ($scannedCode !== $user['qr_secret']) {
-        json_response(['ok' => false, 'message' => 'QR code does not match your digital badge. Please rescan.']);
+/*
+|--------------------------------------------------------------------------
+| TIME-BASED STATUS
+|--------------------------------------------------------------------------
+*/
+$graceMinutes = (int)get_setting(
+    'grace_period_minutes',
+    20
+);
+
+/*
+| For a course session, use the session start time.
+| The existing helper is retained where possible.
+*/
+try {
+    /*
+    | Use PHP/Lagos time consistently.
+    */
+    $sessionStartForStatus = new DateTime(
+        $session['starts_at'],
+        new DateTimeZone('Africa/Lagos')
+    );
+
+    $lateBoundary = clone $sessionStartForStatus;
+    $lateBoundary->modify('+' . $graceMinutes . ' minutes');
+
+    if ($now > $lateBoundary) {
+        $status = 'late';
     }
-    $qrVerified = 1;
-    $methodsUsed[] = 'QR';
+
+} catch (Exception $e) {
+    checkin_error(
+        'Unable to calculate attendance time status: ' . $e->getMessage(),
+        500
+    );
 }
 
-// --- GPS ---
-if (isset($collected['GPS']['lat'], $collected['GPS']['lng'])) {
-    $gpsLat = (float)$collected['GPS']['lat'];
-    $gpsLng = (float)$collected['GPS']['lng'];
-    if ($session) {
-        $distance = (int)round(gps_distance_meters(
-            $gpsLat,
-            $gpsLng,
-            (float)$session['latitude'],
-            (float)$session['longitude']
-        ));
-        if ($distance > (int)$session['radius_m']) {
-            $status = 'geofence_violation';
-        }
-    } else {
-        $nearest = find_nearest_geofence($conn, $gpsLat, $gpsLng);
-        if ($nearest['geofence']) {
-            $geofenceId = $nearest['geofence']['id'];
-            $distance = (int)round($nearest['distance']);
-            if (!$nearest['within']) {
-                $status = 'geofence_violation';
-            }
-        }
-    }
-    $methodsUsed[] = 'GPS';
-}
-
-// --- FACE ---
-if (array_key_exists('FACE', $collected)) {
-    $descriptor = $collected['FACE']['descriptor'] ?? null; // array of 128 floats from face-api.js
-    $methodsUsed[] = 'FACE';
-
-    if (is_array($descriptor) && count($descriptor) === 128 && $user['face_enrolled'] && $user['face_template']) {
-        $storedTemplate = json_decode($user['face_template'], true);
-        $faceDistance = is_array($storedTemplate) && count($storedTemplate) === 128
-            ? face_euclidean_distance($storedTemplate, $descriptor)
-            : null;
-        if ($faceDistance !== null) {
-            $faceMatch = face_distance_to_percent($faceDistance);
-            $threshold = (float)get_setting('face_distance_threshold', 0.6);
-            if ($faceDistance > $threshold && $status === 'on_time') {
-                $status = 'face_mismatch';
-            }
-        }
-    }
-    // If the user has no enrolled face template yet, or no descriptor was captured
-    // (camera denied, etc.), the check-in proceeds without a face score rather than
-    // blocking attendance — mirrors the "N/A" face score seen for non-enrolled users.
-}
-
-// --- FINGERPRINT ---
-if (!empty($collected['FINGERPRINT']['verified'])) {
-    $fingerprintVerified = 1;
-    $methodsUsed[] = 'FINGERPRINT';
-}
-
-// --- Time-based status (only overrides on_time, doesn't downgrade a violation) ---
-$now = new DateTime();
-$graceMinutes = (int)get_setting('grace_period_minutes', 15);
-$timeStatus = $session
-    ? compute_session_time_status($session['ends_at'], 0, $now)
-    : compute_time_status($user['shift_start'], $graceMinutes, $now);
-if ($status === 'on_time' && $timeStatus === 'late') {
-    $status = 'late';
-}
-
+/*
+|--------------------------------------------------------------------------
+| INSERT ATTENDANCE
+|--------------------------------------------------------------------------
+*/
 $methodsStr = implode(',', $methodsUsed);
-$storedSessionId = $sessionId ?: null;
+
+$checkInStr = $now->format('Y-m-d H:i:s');
+
+$storedSessionId = $sessionId;
+
+/*
+| No geofence_id is used for course-session attendance because the course
+| session itself contains the authoritative latitude/longitude/radius.
+*/
+$geofenceId = null;
 
 $stmt = $conn->prepare(
     'INSERT INTO attendance_logs
-    (user_id, session_id, geofence_id, check_in_time, status, methods_used, gps_lat, gps_lng, gps_distance_m, face_match_pct, qr_verified, fingerprint_verified)
+    (
+        user_id,
+        session_id,
+        geofence_id,
+        check_in_time,
+        status,
+        methods_used,
+        gps_lat,
+        gps_lng,
+        gps_distance_m,
+        face_match_pct,
+        qr_verified,
+        fingerprint_verified
+    )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
-$checkInStr = $now->format('Y-m-d H:i:s');
-$stmt->bind_param(
-        'iiisssddddii',
-        $user['id'], $storedSessionId, $geofenceId, $checkInStr, $status, $methodsStr,
-    $gpsLat, $gpsLng, $distance, $faceMatch, $qrVerified, $fingerprintVerified
-);
-$stmt->execute();
 
+if (!$stmt) {
+    checkin_error(
+        'Database error while preparing attendance record: ' . $conn->error,
+        500
+    );
+}
+
+/*
+| Types:
+|
+| i = user_id
+| i = session_id
+| i = geofence_id
+| s = check_in_time
+| s = status
+| s = methods_used
+| d = gps_lat
+| d = gps_lng
+| d = distance
+| d = face_match
+| i = qr_verified
+| i = fingerprint_verified
+*/
+$stmt->bind_param(
+    'iiisssddddii',
+    $user['id'],
+    $storedSessionId,
+    $geofenceId,
+    $checkInStr,
+    $status,
+    $methodsStr,
+    $gpsLat,
+    $gpsLng,
+    $distance,
+    $faceMatch,
+    $qrVerified,
+    $fingerprintVerified
+);
+
+if (!$stmt->execute()) {
+    checkin_error(
+        'Database error while recording attendance: ' . $stmt->error,
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| SUCCESS
+|--------------------------------------------------------------------------
+*/
 json_response([
     'ok' => true,
     'status' => $status,
     'status_label' => badge_label($status),
+    'message' => 'Attendance Recorded',
     'time' => $now->format('n/j/Y, g:i:s A'),
-    'distance' => $distance !== null ? $distance . 'm' : null,
-    'face_match' => $faceMatch !== null ? $faceMatch . '%' : null,
+    'timezone' => 'Africa/Lagos',
+    'distance' => $distance . 'm',
+    'face_match' => $faceMatch . '%',
+    'methods_used' => $methodsUsed
 ]);

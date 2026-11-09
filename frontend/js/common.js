@@ -24,6 +24,9 @@ async function apiFetch(path, options = {}) {
   }
   let res, data;
   try {
+    console.log('API URL:', `${API_BASE}/${path}`);
+    console.log('API OPTIONS:', opts);
+
     res = await fetch(`${API_BASE}/${path}`, opts);
   } catch (e) {
     return { ok: false, status: 0, data: { message: e.name === 'AbortError' ? 'The server did not respond. Make sure Apache and MySQL are running.' : 'Network error — is the PHP server running?' } };

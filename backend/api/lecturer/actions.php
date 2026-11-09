@@ -67,6 +67,181 @@ switch ($action) {
         json_response(['success' => true]);
     }
 
+    case 'generate_attendance_qr': {
+
+        $sessionId = (int)($body['session_id'] ?? 0);
+
+        if (!$sessionId) {
+            json_response([
+                'success' => false,
+                'message' => 'A session id is required.'
+            ], 422);
+        }
+
+        // Get the attendance session
+        $checkStmt = $conn->prepare(
+            'SELECT
+                id,
+                created_by,
+                is_active,
+                starts_at,
+                ends_at
+            FROM attendance_sessions
+            WHERE id = ?
+            LIMIT 1'
+        );
+
+        if (!$checkStmt) {
+            json_response([
+                'success' => false,
+                'message' => 'Database error: ' . $conn->error
+            ], 500);
+        }
+
+        $checkStmt->bind_param('i', $sessionId);
+
+        if (!$checkStmt->execute()) {
+            json_response([
+                'success' => false,
+                'message' => 'Unable to check attendance session: ' . $checkStmt->error
+            ], 500);
+        }
+
+        $session = $checkStmt->get_result()->fetch_assoc();
+
+        if (!$session) {
+            json_response([
+                'success' => false,
+                'message' => 'Attendance session not found.'
+            ], 404);
+        }
+
+        // Check ownership
+        if (
+            $lecturer['role'] !== 'admin' &&
+            (int)$session['created_by'] !== (int)$lecturer['id']
+        ) {
+            json_response([
+                'success' => false,
+                'message' => 'You can only generate QR codes for your own attendance sessions.'
+            ], 403);
+        }
+
+        // Check active status
+        if ((int)$session['is_active'] !== 1) {
+            json_response([
+                'success' => false,
+                'message' => 'This attendance session is closed.'
+            ], 422);
+        }
+
+        // Lagos time
+        $timezone = new DateTimeZone('Africa/Lagos');
+
+        $now = new DateTime('now', $timezone);
+
+        $sessionStart = new DateTime(
+            $session['starts_at'],
+            $timezone
+        );
+
+        $sessionEnd = new DateTime(
+            $session['ends_at'],
+            $timezone
+        );
+
+        if ($now < $sessionStart) {
+            json_response([
+                'success' => false,
+                'message' => 'This attendance session has not started yet.'
+            ], 422);
+        }
+
+        if ($now > $sessionEnd) {
+            json_response([
+                'success' => false,
+                'message' => 'This attendance session has already ended.'
+            ], 422);
+        }
+
+        // Generate secure token
+        try {
+            $token = bin2hex(random_bytes(32));
+        } catch (Exception $e) {
+            json_response([
+                'success' => false,
+                'message' => 'Unable to generate secure QR token.'
+            ], 500);
+        }
+
+        // Store only the hash
+        $tokenHash = hash('sha256', $token);
+
+        // QR expires after 180 seconds
+        $expiresAt = clone $now;
+        $expiresAt->modify('+180 seconds');
+
+        $expiresString = $expiresAt->format('Y-m-d H:i:s');
+
+        // Remove previous QR token
+        $deleteStmt = $conn->prepare(
+            'DELETE FROM attendance_qr_tokens
+            WHERE session_id = ?'
+        );
+
+        if (!$deleteStmt) {
+            json_response([
+                'success' => false,
+                'message' => 'Database error preparing QR replacement: ' . $conn->error
+            ], 500);
+        }
+
+        $deleteStmt->bind_param('i', $sessionId);
+
+        if (!$deleteStmt->execute()) {
+            json_response([
+                'success' => false,
+                'message' => 'Unable to remove previous QR token: ' . $deleteStmt->error
+            ], 500);
+        }
+
+        // Insert new QR token
+        $insertStmt = $conn->prepare(
+            'INSERT INTO attendance_qr_tokens
+                (session_id, token_hash, expires_at)
+            VALUES (?, ?, ?)'
+        );
+
+        if (!$insertStmt) {
+            json_response([
+                'success' => false,
+                'message' => 'Database error preparing QR token: ' . $conn->error
+            ], 500);
+        }
+
+        $insertStmt->bind_param(
+            'iss',
+            $sessionId,
+            $tokenHash,
+            $expiresString
+        );
+
+        if (!$insertStmt->execute()) {
+            json_response([
+                'success' => false,
+                'message' => 'Unable to create QR token: ' . $insertStmt->error
+            ], 500);
+        }
+
+        json_response([
+            'success' => true,
+            'session_id' => $sessionId,
+            'token' => $token,
+            'expires_at' => $expiresString,
+            'expires_in' => 180
+        ]);
+    }
+
     default:
         json_response(['success' => false, 'message' => 'Unknown action.'], 400);
 }
